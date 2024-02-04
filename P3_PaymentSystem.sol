@@ -1,42 +1,57 @@
-//SPDX-License-Identifier: MIT
-pragma solidity ^0.8.15;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
 
-contract PaymentApp{
+contract PaymentSystem {
+    // Contract owner
     address public owner;
 
-    mapping(address=>uint256) public balances;
-    mapping(address=>bytes4) public userPin;
+    // User balances and PINs mapping
+    mapping(address => uint256) public balances;
+    mapping(address => bytes4) public userPINs;
 
-    event Deposit(address indexed account,uint256 amount);
-    event Withdrawal(address indexed account,uint256 amount);
-    event Transfer(address indexed from,address indexed to,uint256 amount);
+    // Events for logging
+    event Deposit(address indexed account, uint256 amount);
+    event Withdrawal(address indexed account, uint256 amount);
+    event Transfer(address indexed from, address indexed to, uint256 amount);
 
-    modifier onlyOwner(){
-        require(msg.sender==owner,"Youre not a owner");
+    // Modifier to restrict access to the contract owner
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not the contract owner");
         _;
     }
-    modifier pinMatches(uint256 _pin){
-        require(userPin[msg.sender]==bytes4(keccak256(abi.encodePacked(_pin))),"Invalid Pin");
+
+    // Modifier to check if PIN provided matches the stored PIN for a user
+    modifier pinMatches(uint256 _pin) {
+        require(userPINs[msg.sender] == bytes4(keccak256(abi.encodePacked(_pin))), "Invalid PIN");
         _;
     }
-    constructor(){
-        owner=msg.sender;
+
+    // Contract constructor, sets the contract owner to the deployer
+    constructor() {
+        owner = msg.sender;
     }
 
-    function setPin(uint256 _pin) external {
-        userPin[msg.sender] = bytes4(keccak256(abi.encodePacked(_pin)));
+    // Function to set a PIN for the calling user
+    function setPIN(uint256 _pin) external {
+        userPINs[msg.sender] = bytes4(keccak256(abi.encodePacked(_pin)));
     }
-    function deposit() external payable{
-        require(msg.value>0,"Invalid Deposit");
+
+    // Function to deposit funds into the contract
+    function deposit() external payable {
+        require(msg.value > 0, "Invalid deposit amount");
         balances[msg.sender] += msg.value;
-        emit Deposit(msg.sender,msg.value);
+        emit Deposit(msg.sender, msg.value);
     }
-    function withdraw(uint256 _amount,uint256 _pin) external pinMatches(_pin){
-        require(_amount>0 && _amount<=balances[msg.sender],"Invalid Withdrawal amount");
-        balances[msg.sender]-=_amount;
+
+    // Function to withdraw funds from the contract
+    function withdraw(uint256 _amount, uint256 _pin) external pinMatches(_pin) {
+        require(_amount > 0 && _amount <= balances[msg.sender], "Invalid withdrawal amount");
+        balances[msg.sender] -= _amount;
         payable(msg.sender).transfer(_amount);
-        emit Withdrawal(msg.sender,_amount);
+        emit Withdrawal(msg.sender, _amount);
     }
+
+    // Function to transfer funds from the caller to another address
     function transfer(address _to, uint256 _amount, uint256 _pin) external pinMatches(_pin) {
         require(_amount > 0 && _amount <= balances[msg.sender], "Invalid transfer amount");
         balances[msg.sender] -= _amount;
@@ -44,6 +59,7 @@ contract PaymentApp{
         emit Transfer(msg.sender, _to, _amount);
     }
 
+    // Function to get the balance of the calling user
     function getBalance() external view returns (uint256) {
         return balances[msg.sender];
     }
